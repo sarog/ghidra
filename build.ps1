@@ -20,5 +20,7 @@ Write-Host ">>> Building Ghidra"
 ## Uncompressed form:
 gradle assembleAll -x ip
 
+explorer .\build\dist\
+
 ## Compressed distribution:
 # gradle buildGhidra -x ip
