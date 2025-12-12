@@ -130,6 +130,8 @@ public class GolangSymbolAnalyzer extends AbstractAnalyzer {
 			return false;
 		}
 
+		Msg.info(this, "Go version %s".formatted(goBinary.getGoVer()));
+
 		goTypes = goBinary.getGoTypes();
 		markupSession = goBinary.createMarkupSession(monitor);
 
@@ -225,6 +227,8 @@ public class GolangSymbolAnalyzer extends AbstractAnalyzer {
 				continue;
 			}
 
+			// NOTE: DWARF may have applied function signature with IMPORTED source type but
+			// this analyzer must apply more details
 			Function func = markupSession.createFunctionIfMissing(funcname, funcns, funcAddr);
 			if (func == null ||
 				func.getSignatureSource().isHigherPriorityThan(SourceType.IMPORTED)) {
@@ -274,17 +278,19 @@ public class GolangSymbolAnalyzer extends AbstractAnalyzer {
 					functionSignatureFromMethod++;
 				}
 
-				GoFunctionFixup ff = new GoFunctionFixup(func, funcDefResult.funcDef(),
-					goBinary.getCallingConventionFor(funcdata), goBinary.newStorageAllocator());
+				if (funcdata.getFlags().isEmpty()) {
+					GoFunctionFixup ff = new GoFunctionFixup(func, funcDefResult.funcDef(),
+						goBinary.getDefaultCallingConventionName(), goBinary.newStorageAllocator());
 
-				try {
-					ff.apply();
-				}
-				catch (DuplicateNameException | InvalidInputException
-						| IllegalArgumentException e) {
-					MarkupSession.logWarningAt(program, func.getEntryPoint(),
-						"Failed to update function signature: " + e.getMessage());
-					continue;
+					try {
+						ff.apply();
+					}
+					catch (DuplicateNameException | InvalidInputException
+							| IllegalArgumentException e) {
+						MarkupSession.logWarningAt(program, func.getEntryPoint(),
+							"Failed to update function signature: " + e.getMessage());
+						continue;
+					}
 				}
 
 				if (funcDefResult.symbolName().hasReceiver()) {
@@ -503,8 +509,8 @@ public class GolangSymbolAnalyzer extends AbstractAnalyzer {
 		Address mbStart = max.subtract(offset_from_eom + len - 1);
 		MemoryBlock newMB =
 			MemoryBlockUtils.createUninitializedBlock(program, false, "ARTIFICAL_GOLANG_CONTEXT",
-				mbStart, len, "Artifical memory block created to hold Go context data types",
-				null, true, true, false, null);
+				mbStart, len, "Artifical memory block created to hold Go context data types", null,
+				true, true, false, null);
 		newMB.setArtificial(true);
 		return newMB.getStart();
 	}
@@ -691,7 +697,7 @@ public class GolangSymbolAnalyzer extends AbstractAnalyzer {
 					memBlk = memory.getBlock(afterFlag);
 					memBlk.setName(memBlk.getName().replaceFirst("(\\.split)+$", ".part2"));
 				}
-				catch (MemoryBlockException | LockException | NotFoundException e) {
+				catch (MemoryBlockException | LockException e) {
 					Msg.error(this, "Failed to fixup runtime.writeBarrier flag", e);
 				}
 			}
@@ -1033,7 +1039,6 @@ public class GolangSymbolAnalyzer extends AbstractAnalyzer {
 		record CallSiteInfo(Reference ref, Function callingFunc, Function calledFunc,
 				Register register, java.util.function.Function<GoType, DataType> returnTypeMapper) {
 		}
-
 
 		private GoRttiMapper goBinary;
 		private Program program;
