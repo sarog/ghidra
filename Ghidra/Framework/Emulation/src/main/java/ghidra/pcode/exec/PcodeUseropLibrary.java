@@ -49,6 +49,11 @@ public interface PcodeUseropLibrary<T> {
 		public Map<String, PcodeUseropDefinition<Object>> getUserops() {
 			return Map.of();
 		}
+
+		@Override
+		public PcodeUseropLibrary<Object> compose(PcodeUseropLibrary<Object> lib) {
+			return lib;
+		}
 	}
 
 	/**
@@ -126,23 +131,7 @@ public interface PcodeUseropLibrary<T> {
 		 * @param executor the executor invoking this userop.
 		 * @param library the complete library for this execution. Note the library may have been
 		 *            composed from more than the one defining this userop.
-		 * @param outVar if invoked as an rval, the destination varnode for the userop's output.
-		 *            Otherwise, {@code null}.
-		 * @param inVars the input varnodes as ordered in the source.
-		 * @see AnnotatedPcodeUseropLibrary.AnnotatedPcodeUseropDefinition
-		 */
-		default void execute(PcodeExecutor<T> executor, PcodeUseropLibrary<T> library,
-				Varnode outVar, List<Varnode> inVars) {
-			execute(executor, library, null, outVar, inVars);
-		}
-
-		/**
-		 * Invoke/execute the userop.
-		 * 
-		 * @param executor the executor invoking this userop.
-		 * @param library the complete library for this execution. Note the library may have been
-		 *            composed from more than the one defining this userop.
-		 * @param op the CALLOTHER p-code op
+		 * @param op the {@link PcodeOp#CALLOTHER} op
 		 * @param outVar if invoked as an rval, the destination varnode for the userop's output.
 		 *            Otherwise, {@code null}.
 		 * @param inVars the input varnodes as ordered in the source.
@@ -285,13 +274,24 @@ public interface PcodeUseropLibrary<T> {
 	 * Compose this and the given library into a new library.
 	 * 
 	 * @param lib the other library
+	 * @param override allow the given library to override userops from this library
+	 * @return a new library having all userops defined between the two
+	 */
+	default PcodeUseropLibrary<T> compose(PcodeUseropLibrary<T> lib, boolean override) {
+		if (lib == null || lib == NIL) {
+			return this;
+		}
+		return new ComposedPcodeUseropLibrary<>(List.of(this, lib), override);
+	}
+
+	/**
+	 * Compose this and the given library into a new library, forbidding overrides
+	 * 
+	 * @param lib the other library
 	 * @return a new library having all userops defined between the two
 	 */
 	default PcodeUseropLibrary<T> compose(PcodeUseropLibrary<T> lib) {
-		if (lib == null) {
-			return this;
-		}
-		return new ComposedPcodeUseropLibrary<>(List.of(this, lib));
+		return compose(lib, false);
 	}
 
 	/**
