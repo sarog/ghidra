@@ -113,7 +113,7 @@ rootProject.assembleDistribution {
 
 // copy os specific files for each platform
 rootProject.PLATFORMS.each { platform ->
-	rootProject.tasks.findAll {it.name == "assembleDistribution_${platform.name}"}.each { t -> 
+	rootProject.tasks.matching {it.name == "assembleDistribution_${platform.name}"}.each { t -> 
 
 		def p = this.project
 		
@@ -225,7 +225,7 @@ rootProject.assembleMarkdownToHtml {
 /////////////////////////////////////////////////////////////////////////////	
 plugins.withType(CPlugin) {
 	rootProject.PLATFORMS.each { platform ->
-		rootProject.tasks.findAll {it.name == "assembleDistribution_${platform.name}"}.each { t -> 
+		rootProject.tasks.matching {it.name == "assembleDistribution_${platform.name}"}.each { t -> 
 			t.dependsOn this.assemble
 		}
 	}
