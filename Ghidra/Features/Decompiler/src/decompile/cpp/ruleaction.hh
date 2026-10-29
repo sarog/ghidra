@@ -89,15 +89,9 @@ public:
     if (!grouplist.contains(getGroup())) return (Rule *)0;
     return new RuleEarlyRemoval(getGroup());
   }
-  // This rule applies to all ops
+  virtual void getOpList(vector<uint4> &oplist) const;
   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
 };
-// class RuleAddrForceRelease : public Rule {
-// public:
-//   RuleAddrForceRelease(const string &g) : Rule(g, 0, "addrforcerelease") {}	///< Constructor
-//   virtual void getOpList(vector<uint4> &oplist) const;
-//   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
-// };
 class RuleCollectTerms : public Rule {
   static Varnode *getMultCoeff(Varnode *vn,uintb &coef);	///< Get the multiplicative coefficient
 public:
@@ -707,7 +701,7 @@ public:
     if (!grouplist.contains(getGroup())) return (Rule *)0;
     return new RuleCollapseConstants(getGroup());
   }
-  // applies to all opcodes
+  virtual void getOpList(vector<uint4> &oplist) const;
   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
 };
 class RuleTransformCpool : public Rule {
@@ -856,16 +850,6 @@ public:
   virtual void getOpList(vector<uint4> &oplist) const;
   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
 };
-// class RuleIndirectConcat : public Rule {
-// public:
-//   RuleIndirectConcat(const string &g) : Rule(g, 0, "indirectconcat") {}	///< Constructor
-//   virtual Rule *clone(const ActionGroupList &grouplist) const {
-//     if (!grouplist.contains(getGroup())) return (Rule *)0;
-//     return new RuleIndirectConcat(getGroup());
-//   }
-//   virtual void getOpList(vector<uint4> &oplist) const;
-//   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
-// };
 class RuleConcatZext : public Rule {
 public:
   RuleConcatZext(const string &g) : Rule(g, 0, "concatzext") {}	///< Constructor
@@ -1113,11 +1097,11 @@ public:
   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
 };
 class RulePtrsubUndo : public Rule {
-  static const int4 DEPTH_LIMIT;	///< The maximum depth of the additive expression to check
-  static int8 getConstOffsetBack(Varnode *vn,int8 &multiplier,int4 maxLevel);
+  static constexpr int4 MAX_TERMS = 64;	///< The maximum number of terms to traverse
+  static int8 getConstOffsetBack(Varnode *vn,int8 &multiplier,int4 &termCount);
   static int8 getExtraOffset(PcodeOp *op,int8 &multiplier);
   static int8 removeLocalAdds(Varnode *vn,Funcdata &data);
-  static int8 removeLocalAddRecurse(PcodeOp *op,int4 slot,int4 maxLevel,Funcdata &data);
+  static int8 removeLocalAddRecurse(PcodeOp *op,int4 slot,Funcdata &data);
 public:
   RulePtrsubUndo(const string &g) : Rule(g, 0, "ptrsubundo") {}	///< Constructor
   virtual Rule *clone(const ActionGroupList &grouplist) const {
@@ -1266,7 +1250,7 @@ public:
   }
   virtual void getOpList(vector<uint4> &oplist) const;
   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
-  static PcodeOp *findSubshift(PcodeOp *op,int4 &n,OpCode &shiftopc);
+  static PcodeOp *findSubshift(PcodeOp *op,uint4 &n,OpCode &shiftopc);
 };
 
 class RuleDivTermAdd2 : public Rule {
@@ -1281,7 +1265,7 @@ public:
 };
 
 class RuleDivOpt : public Rule {
-  static uintb calcDivisor(uintb n,uint8 *y,int4 xsize);		///< Calculate the divisor
+  static uintb calcDivisor(uint4 n,uint8 *y,uint4 xsize);		///< Calculate the divisor
   static void moveSignBitExtraction(Varnode *firstVn,Varnode *replaceVn,Funcdata &data);
   static bool checkFormOverlap(PcodeOp *op);	///< If form rooted at given PcodeOp is superseded by an overlapping form
 public:
@@ -1292,7 +1276,7 @@ public:
   }
   virtual void getOpList(vector<uint4> &oplist) const;
   virtual int4 applyOp(PcodeOp *op,Funcdata &data);
-  static Varnode *findForm(PcodeOp *op,int4 &n,uint8 *y,int4 &xsize,OpCode &extopc);
+  static Varnode *findForm(PcodeOp *op,uint4 &n,uint8 *y,uint4 &xsize,OpCode &extopc);
 };
 
 class RuleSignDiv2 : public Rule {
@@ -1411,6 +1395,7 @@ public:
 class RulePtrFlow : public Rule {
   Architecture *glb;			///< The address space manager
   bool hasTruncations;			///< \b true if this architecture needs truncated pointers
+  bool walkIndirects(PcodeOp *op);
   bool trialSetPtrFlow(PcodeOp *op);
   bool propagateFlowToDef(Varnode *vn);
   bool propagateFlowToReads(Varnode *vn);

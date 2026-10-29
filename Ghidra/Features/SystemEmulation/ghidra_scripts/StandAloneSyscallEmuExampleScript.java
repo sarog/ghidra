@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@
 //@toolbar
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import db.Transaction;
 import ghidra.app.plugin.assembler.Assembler;
@@ -46,7 +47,7 @@ import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.symbol.SourceType;
 
 public class StandAloneSyscallEmuExampleScript extends GhidraScript {
-	private final static Charset UTF8 = Charset.forName("utf8");
+	private final static Charset UTF8 = StandardCharsets.UTF_8;
 
 	Program program = null;
 
@@ -70,7 +71,7 @@ public class StandAloneSyscallEmuExampleScript extends GhidraScript {
 			program =
 				new ProgramDB("syscall_example", language,
 					language.getCompilerSpecByID(new CompilerSpecID("gcc")), this);
-			try (Transaction tx = program.openTransaction("Init")) {
+			try (Transaction _ = program.openTransaction("Init")) {
 				AddressSpace space = program.getAddressFactory().getDefaultAddressSpace();
 				entry = space.getAddress(0x00400000);
 				Address dataEntry = space.getAddress(0x00600000);

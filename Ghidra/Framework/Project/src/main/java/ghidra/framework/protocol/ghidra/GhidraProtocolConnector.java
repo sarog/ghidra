@@ -80,7 +80,7 @@ public abstract class GhidraProtocolConnector {
 	 */
 	protected void checkProtocol() throws MalformedURLException {
 		if (!GhidraURL.PROTOCOL.equals(url.getProtocol())) {
-			throw new MalformedURLException("expected ghidra URL protocol");
+			throw new MalformedURLException("Expected ghidra URL protocol");
 		}
 	}
 
@@ -102,16 +102,17 @@ public abstract class GhidraProtocolConnector {
 	protected void checkHostInfo() throws MalformedURLException {
 		String host = url.getHost();
 		if (host.length() == 0) {
-			throw new MalformedURLException("missing server host specification");
+			throw new MalformedURLException("URL is missing server specification");
 		}
 	}
 
 	/**
-	 * Parse repository name from URL
+	 * Parse repository name from URL. Invoked by the constructor; overrides must not depend
+	 * on subclass fields initialized after the superclass constructor returns.
 	 * @return repository name or null if not specified
 	 * @throws MalformedURLException if URL is invalid
 	 */
-	private String parseRepositoryName() throws MalformedURLException {
+	protected String parseRepositoryName() throws MalformedURLException {
 
 		String path = uri.getPath();
 
@@ -129,7 +130,7 @@ public abstract class GhidraProtocolConnector {
 		}
 
 		if (path.length() == 0) {
-			throw new MalformedURLException("invalid path specification");
+			throw new MalformedURLException("URL is missing repository name");
 		}
 
 		return path;
@@ -149,7 +150,7 @@ public abstract class GhidraProtocolConnector {
 		}
 
 		if (!contentPath.startsWith(FileSystem.SEPARATOR)) {
-			throw new MalformedURLException("invalid content path specification");
+			throw new MalformedURLException("URL has invalid content path specification");
 		}
 
 		boolean isFolder = contentPath.endsWith(FileSystem.SEPARATOR);
@@ -165,7 +166,7 @@ public abstract class GhidraProtocolConnector {
 		for (int i = 1; i < pieces.length; i++) {
 			String p = pieces[i];
 			if (p.length() == 0) {
-				throw new MalformedURLException("invalid content path specification");
+				throw new MalformedURLException("URL has invalid content path specification");
 			}
 			if (!isFolder && i == (pieces.length - 1)) {
 				folderItemName = p;

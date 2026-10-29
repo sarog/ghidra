@@ -32,16 +32,21 @@ import ghidra.framework.model.DomainFile;
 import ghidra.framework.model.ProjectData;
 import ghidra.framework.store.db.PackedDatabase;
 import ghidra.program.database.ProgramDB;
+import ghidra.program.database.dtarchive.DataTypeArchiveFactory;
 import ghidra.program.model.data.DataTypeManager;
-import ghidra.program.model.data.FileDataTypeManager;
+import ghidra.program.model.dtarchive.FileDataTypeArchive;
 import ghidra.program.model.listing.Program;
 import ghidra.util.Msg;
 import ghidra.util.task.TaskMonitor;
 
-public class IsfServer extends Thread {
-	private ServerSocket server;
+// NB: This code is included for demonstration purposes only and is not used by the distribution.
+// Real use cases should implement authentication if the server is to be used in an unrestricted environment.
 
-	private boolean running = false;
+public class IsfServer implements Runnable {
+	private ServerSocket server;
+	private Thread serverThread;
+
+	private volatile boolean running = false;
 	private GhidraProject project;
 	private int port = 54321;
 	private IsfClientHandler handler;
@@ -55,18 +60,39 @@ public class IsfServer extends Thread {
 	}
 
 	public void startServer() {
+		if (running) {
+			return;
+		}
 		try {
 			server = new ServerSocket(port, 50, InetAddress.getLoopbackAddress());
-			this.start();
+			running = true;
+			serverThread = new Thread(this, "IsfServer-Listener");
+			serverThread.start();
 		}
 		catch (IOException e) {
-			throw new RuntimeException("Could not start server");
+			throw new RuntimeException("Could not start server", e);
 		}
 	}
 
 	public void stopServer() {
+		if (!running) {
+			return;
+		}
 		running = false;
-		this.interrupt();
+
+		if (server != null && !server.isClosed()) {
+			try {
+				server.close();
+			}
+			catch (IOException e) {
+				Msg.error(this, "Error closing server socket during shutdown", e);
+			}
+		}
+
+		if (serverThread != null) {
+			serverThread.interrupt();
+		}
+
 		for (DataTypeManager m : managers.values()) {
 			m.close();
 		}
@@ -87,7 +113,13 @@ public class IsfServer extends Thread {
 				connectionHandler.start();
 			}
 			catch (IOException e) {
-				Msg.error(this, e);
+				if (!running) {
+					Msg.info(this, "Server socket shutdown.");
+				}
+				else {
+					Msg.error(this, "Unexpected exception - terminating server.", e);
+					stopServer();
+				}
 			}
 		}
 	}
@@ -132,7 +164,9 @@ public class IsfServer extends Thread {
 
 	private DataTypeManager openAsDataTypeArchive(String ns) throws Exception {
 		File gdt = new File(ns);
-		return FileDataTypeManager.openFileArchive(gdt, false);
+		FileDataTypeArchive archive =
+			DataTypeArchiveFactory.openReadOnly(gdt, this, TaskMonitor.DUMMY);
+		return archive != null ? archive.getDataTypeManager() : null;
 	}
 
 	private DataTypeManager openAsProgramDatabase(String ns) throws Exception {

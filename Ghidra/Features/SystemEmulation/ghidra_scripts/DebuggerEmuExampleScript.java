@@ -24,6 +24,7 @@
 //@toolbar
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import db.Transaction;
 import ghidra.app.plugin.assembler.Assembler;
@@ -55,7 +56,7 @@ import ghidra.trace.model.time.TraceSnapshot;
 import ghidra.trace.model.time.TraceTimeManager;
 
 public class DebuggerEmuExampleScript extends GhidraScript implements FlatDebuggerAPI {
-	private final static Charset UTF8 = Charset.forName("utf8");
+	private final static Charset UTF8 = StandardCharsets.UTF_8;
 
 	@Override
 	protected void run() throws Exception {
@@ -80,7 +81,7 @@ public class DebuggerEmuExampleScript extends GhidraScript implements FlatDebugg
 					.getProjectData()
 					.getRootFolder()
 					.createFile("emu_example", program, monitor);
-			try (Transaction tx = program.openTransaction("Init")) {
+			try (Transaction _ = program.openTransaction("Init")) {
 				AddressSpace space = program.getAddressFactory().getDefaultAddressSpace();
 				entry = space.getAddress(0x00400000);
 				Address dataEntry = space.getAddress(0x00600000);
@@ -167,7 +168,7 @@ public class DebuggerEmuExampleScript extends GhidraScript implements FlatDebugg
 		 */
 		TraceTimeManager time = trace.getTimeManager();
 		TraceSnapshot snapshot = time.getSnapshot(0, true);
-		try (Transaction tx = trace.openTransaction("Emulate")) {
+		try (Transaction _ = trace.openTransaction("Emulate")) {
 			for (int i = 0; i < 10; i++) {
 				println("Executing: " + thread.getCounter());
 				thread.stepInstruction();

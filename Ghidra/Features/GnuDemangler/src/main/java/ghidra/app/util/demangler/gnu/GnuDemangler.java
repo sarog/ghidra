@@ -97,6 +97,9 @@ public class GnuDemangler implements Demangler {
 		else if (mangled.startsWith("__Z")) {
 			mangled = mangled.substring(1);
 		}
+		else if (mangled.startsWith("._Z")) {
+			mangled = mangled.substring(1);
+		}
 
 		boolean isDwarf = false;
 		if (mangled.startsWith(DWARF_REF)) {
@@ -120,12 +123,13 @@ public class GnuDemangler implements Demangler {
 			DemangledObject demangledObject =
 				parse(originalMangled, process, demangled, options);
 			if (demangledObject == null) {
-				return demangledObject;
+				return null;
 			}
 
 			if (globalPrefix != null) {
+				String prefix = translateGlobalPrefix(globalPrefix);
 				DemangledFunction dfunc = new DemangledFunction(originalMangled, demangled,
-					globalPrefix + demangledObject.getName());
+					prefix + demangledObject.getName());
 				dfunc.setNamespace(demangledObject.getNamespace());
 				demangledObject = dfunc;
 			}
@@ -150,6 +154,17 @@ public class GnuDemangler implements Demangler {
 			}
 			throw new DemangledException(e);
 		}
+	}
+
+	private String translateGlobalPrefix(String globalPrefix) {
+
+		return switch (globalPrefix) {
+			case "_GLOBAL__sub_I_" -> "global_init_constructor_";
+			case "_GLOBAL__sub_D_" -> "global_destructor_";
+			// case "_GLOBAL__N_" // anonymous namespace; only seen inside mangled text 
+			// case "_GLOBAL__sub_G__" // debugging info; not seen in the wild
+			default -> globalPrefix;
+		};
 	}
 
 	private GnuDemanglerOptions getGnuOptions(DemanglerOptions options) {
@@ -211,6 +226,9 @@ public class GnuDemangler implements Demangler {
 			return false;
 		}
 		if (mangled.startsWith("__Z")) {
+			return false;
+		}
+		if (mangled.startsWith("._Z")) {
 			return false;
 		}
 		if (mangled.startsWith("h__")) {

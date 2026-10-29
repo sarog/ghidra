@@ -89,6 +89,31 @@ public class GnuDemanglerTest extends AbstractGenericTest {
 	}
 
 	@Test
+	public void testFoo() throws Exception {
+
+		//
+		// Mangled: ._ZNK8tinyxml211XMLDocument6AcceptEPNS_10XMLVisitorE
+		//
+		// Demangled: .tinyxml2::XMLDocument::Accept(tinyxml2::XMLVisitor *)
+		//
+		// Fix: remove the leading '.'
+		//
+		String mangled = "._ZNK8tinyxml211XMLDocument6AcceptEPNS_10XMLVisitorE";
+
+		GnuDemangler demangler = new GnuDemangler();
+		demangler.canDemangle(program);// this perform initialization
+
+		GnuDemanglerOptions options = new GnuDemanglerOptions();
+		MangledContext mangledContext =
+			demangler.createMangledContext(mangled, options, program, null);
+		DemangledObject dobj = demangler.demangle(mangledContext);
+		assertNotNull(dobj);
+
+		String signature = dobj.getSignature();
+		assertEquals("undefined tinyxml2::XMLDocument::Accept(tinyxml2::XMLVisitor *)", signature);
+	}
+
+	@Test
 	public void testUseStandardReplacements() throws Exception {
 
 		//
@@ -150,7 +175,9 @@ public class GnuDemanglerTest extends AbstractGenericTest {
 
 		GnuDemanglerOptions options = new GnuDemanglerOptions();
 		options.setUseStandardReplacements(true);
-		DemangledFunction dobj = (DemangledFunction) demangler.demangle(mangled, options);
+		MangledContext context = new MangledContext(program, options, mangled, null);
+
+		DemangledFunction dobj = (DemangledFunction) demangler.demangle(context);
 		assertNotNull(dobj);
 
 		String signature = dobj.getSignature();
@@ -172,7 +199,8 @@ public class GnuDemanglerTest extends AbstractGenericTest {
 		// Now disable demangled string replacement
 		// 
 		options.setUseStandardReplacements(false);
-		dobj = (DemangledFunction) demangler.demangle(mangled, options);
+		context = new MangledContext(program, options, mangled, null);
+		dobj = (DemangledFunction) demangler.demangle(context);
 		assertNotNull(dobj);
 
 		String fullSignature = dobj.getSignature();
@@ -183,7 +211,9 @@ public class GnuDemanglerTest extends AbstractGenericTest {
 		demangledParameter = dobj.getParameters().get(0);
 		type = demangledParameter.getType();
 		dt = type.getDataType(program.getDataTypeManager());
-		assertEquals("typedef basic_string undefined", dt.toString());
+		assertEquals(
+			"typedef basic_string<char,std::char_traits<char>,std::allocator<char>> undefined",
+			dt.toString());
 
 	}
 
@@ -231,6 +261,29 @@ public class GnuDemanglerTest extends AbstractGenericTest {
 		Data d = program.getListing().getDefinedDataAt(addr("01001000"));
 		assertNotNull(d);
 		assertTrue(d.isPointer());
+	}
+
+	@Test
+	public void testGlobalInitializationFunction() throws Exception {
+
+		/*
+		 	Mangled: _GLOBAL__sub_I__ZN6ghidra8ATTRIB_AE
+		 	
+		 	We parse this as a  DemangledVariable.    We then us the '_GLOBAL__sub_I_' prefix as 
+		 	a signal that the symbol represents a global initialization constructor.  We then 
+		 	convert the variable to a DemangledFunction.
+		 	
+		 	Signature: ghidra::global_init_constructor_ATTRIB_A(void)
+		 	
+		 */
+
+		String mangled = "_GLOBAL__sub_I__ZN6ghidra8ATTRIB_AE";
+
+		GnuDemangler demangler = new GnuDemangler();
+		DemangledFunction obj = (DemangledFunction) demangler.demangle(mangled);
+
+		String signature = obj.getSignature();
+		assertEquals("ghidra::global_init_constructor_ATTRIB_A(void)", signature);
 	}
 
 	@Test

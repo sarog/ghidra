@@ -103,9 +103,16 @@ def getGitRev(repoPath) {
  * 		completion of the build.
  *
  *********************************************************************************/
+tasks.register("configureJavadocs") {
+	ext.snippets = []
+	doLast {
+		tasks.createJavadocs.options.addStringOption "-snippet-path", snippets.join(File.pathSeparator)
+	}
+}
 task createJavadocs(type: Javadoc, description: 'Generate javadocs for all projects', group: 'Documentation') {
 	
 	destinationDir = file(rootProject.projectDir.toString() + "/build/tmp/javadoc")
+	dependsOn configureJavadocs
 	
 	failOnError = false
 
@@ -140,7 +147,6 @@ task createJavadocs(type: Javadoc, description: 'Generate javadocs for all proje
 		'implNote:a:Implementation Notes:'
     ]
 }
-
 
  /*********************************************************************************
  * JSONDOCS - RAW
@@ -663,6 +669,14 @@ task assembleAll() {
 		// will ensure the zip archive has sla files newer than slaspec. Give new timestamp of now plus 
 		// two minutes.
 		updateSlaFilesTimestamp(DISTRIBUTION_DIR.getPath(), 2)
+	}
+}
+
+gradle.projectsEvaluated {
+	rootProject.tasks.named('assembleAll') {
+		dependsOn rootProject.subprojects.collect { p ->
+			p.tasks.matching { it.name == 'zipExtensions' }
+		}
 	}
 }
 

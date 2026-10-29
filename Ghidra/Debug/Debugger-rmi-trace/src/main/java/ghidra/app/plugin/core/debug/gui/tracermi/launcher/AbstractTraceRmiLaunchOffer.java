@@ -18,7 +18,7 @@ package ghidra.app.plugin.core.debug.gui.tracermi.launcher;
 import java.io.File;
 import java.io.IOException;
 import java.net.*;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.*;
@@ -181,7 +181,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 		};
 		mappingService.addChangeListener(result.listener);
 		result.check();
-		result.exceptionally(ex -> {
+		result.exceptionally(_ -> {
 			mappingService.removeChangeListener(result.listener);
 			return null;
 		});
@@ -229,11 +229,12 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 	}
 
 	protected void saveState(SaveState state) {
-		plugin.writeToolLaunchConfig(getConfigName(), state);
 		if (program == null) {
-			return;
+			plugin.writeToolLaunchConfig(getConfigName(), state);
 		}
-		plugin.writeProgramLaunchConfig(program, getConfigName(), state);
+		else {
+			plugin.writeProgramLaunchConfig(program, getConfigName(), state);
+		}
 	}
 
 	protected void saveLauncherArgs(Map<String, ValStr<?>> args,
@@ -472,7 +473,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 
 		PtyParent parent = pty.getParent();
 		PtyChild child = pty.getChild();
-		Terminal terminal = terminalService.createWithStreams(plugin, Charset.forName("UTF-8"),
+		Terminal terminal = terminalService.createWithStreams(plugin, StandardCharsets.UTF_8,
 			parent.getInputStream(), parent.getOutputStream());
 
 		List<String> withoutPath = ShellUtils.removePath(commandLine);
@@ -535,7 +536,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 
 		PtyParent parent = pty.getParent();
 		PtyChild child = pty.getChild();
-		Terminal terminal = terminalService.createWithStreams(plugin, Charset.forName("UTF-8"),
+		Terminal terminal = terminalService.createWithStreams(plugin, StandardCharsets.UTF_8,
 			parent.getInputStream(), parent.getOutputStream());
 		TerminalListener resizeListener = new TerminalListener() {
 			@Override

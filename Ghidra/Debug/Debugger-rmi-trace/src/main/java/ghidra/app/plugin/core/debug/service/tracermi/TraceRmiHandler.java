@@ -64,7 +64,6 @@ import ghidra.trace.model.target.schema.TraceObjectSchema.SchemaName;
 import ghidra.trace.model.target.schema.XmlSchemaContext;
 import ghidra.trace.model.time.TraceSnapshot;
 import ghidra.trace.model.time.schedule.TraceSchedule;
-import ghidra.trace.model.time.schedule.TraceSchedule.TimeRadix;
 import ghidra.util.*;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateFileException;
@@ -74,7 +73,7 @@ public class TraceRmiHandler extends AbstractTraceRmiConnection {
 	 * NOTE: This can't just be {@link Application#getApplicationVersion()}, because the Python
 	 * client only specifies up to the minor, not patch, release.
 	 */
-	public static final String VERSION = "12.2";
+	public static final String VERSION = "12.3";
 
 	public static final int MAX_MSG_LENGTH = 1 << 16; // 64K should be plenty and not cause OOM
 
@@ -1187,7 +1186,7 @@ public class TraceRmiHandler extends AbstractTraceRmiConnection {
 			case TIME_NOT_SET -> throw new TraceRmiError("snap or time required");
 			case SNAP -> open.createSnapshot(req.getSnap().getSnap());
 			case SCHEDULE -> open.createSnapshot(
-				TraceSchedule.parse(req.getSchedule().getSchedule(), TimeRadix.DEC));
+				TraceSchedule.parse(req.getSchedule().getSchedule(), Radix.DEC));
 		};
 		snapshot.setDescription(req.getDescription());
 		if (!"".equals(req.getDatetime())) {

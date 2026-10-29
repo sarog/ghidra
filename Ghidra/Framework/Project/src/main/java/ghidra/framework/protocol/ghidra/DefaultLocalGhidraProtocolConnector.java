@@ -61,8 +61,15 @@ public class DefaultLocalGhidraProtocolConnector extends GhidraProtocolConnector
 	protected void checkHostInfo() throws MalformedURLException {
 		String host = url.getHost();
 		if (host.length() != 0) {
-			throw new MalformedURLException("unsupported host specification");
+			throw new MalformedURLException("Invalid local Ghidra URL");
 		}
+	}
+
+	@Override
+	protected String parseRepositoryName() {
+		// The URL path is a local storage path (possibly UNC), not a server repository path.
+		// The project name is obtained from the locator after superclass construction.
+		return null;
 	}
 
 	@Override
@@ -73,7 +80,9 @@ public class DefaultLocalGhidraProtocolConnector extends GhidraProtocolConnector
 	@Override
 	protected String parseItemPath() throws MalformedURLException {
 
-		String path = url.getQuery();
+		// Content names must be decoded before project lookup or folder creation.
+		// URI decoding preserves literal '+' characters and decodes percent escapes only once.
+		String path = uri.getQuery();
 
 		initFolderItemPath(path);
 

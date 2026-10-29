@@ -19,9 +19,12 @@ import java.awt.Desktop;
 import java.io.*;
 import java.net.URI;
 import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.FileSystem;
+import java.nio.file.attribute.*;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.*;
@@ -41,7 +44,7 @@ public final class FileUtilities {
 	private static final ThreadLocal<NumberFormat> SIZE_FORMAT_THREAD_LOCAL =
 		ThreadLocal.withInitial(() -> new DecimalFormat("#,###,###.##"));
 
-	private static final FileFilter ACCEPT_ALL_FILE_FILTER = pathname -> true;
+	private static final FileFilter ACCEPT_ALL_FILE_FILTER = _ -> true;
 
 	private FileUtilities() {
 		// utils class; can't create
@@ -241,7 +244,7 @@ public final class FileUtilities {
 
 		try (FileInputStream fin = new FileInputStream(fromFile)) {
 			if (monitor != null) {
-				monitor.initialize((int) fromFile.length());
+				monitor.initialize(fromFile.length());
 			}
 			return copyStreamToFile(fin, toFile, append, monitor);
 		}
@@ -263,7 +266,7 @@ public final class FileUtilities {
 
 		try (InputStream fin = fromFile.getInputStream()) {
 			if (monitor != null) {
-				monitor.initialize((int) fromFile.length());
+				monitor.initialize(fromFile.length());
 			}
 			copyStreamToFile(fin, toFile, append, monitor);
 		}
@@ -285,7 +288,7 @@ public final class FileUtilities {
 				OutputStream out = toFile.getOutputStream()) {
 
 			if (monitor != null) {
-				monitor.initialize((int) fromFile.length());
+				monitor.initialize(fromFile.length());
 			}
 			copyStreamToStream(fin, out, monitor);
 		}
@@ -385,8 +388,37 @@ public final class FileUtilities {
 	}
 
 	/**
+	 * Create {@code file} with owner-only permissions and return a stream for writing.
+	 * The stream is opened on the same file handle used to create the file
+	 * (O_CREAT|O_EXCL on POSIX / CREATE_NEW on Windows), so there is no second path
+	 * lookup between creation and write.
+	 * @param file file to be created and written
+	 * @return file output stream
+	 * @throws IOException if operation fails
+	 */
+	public static OutputStream newOwnerPrivateFileOutputStream(File file) throws IOException {
+		Path path = file.toPath();
+
+		if (file.exists() && !file.canWrite()) {
+			file.setWritable(true, true);
+		}
+		Files.deleteIfExists(path);
+
+		Set<OpenOption> opts = Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+		try {
+			FileAttribute<Set<PosixFilePermission>> perms =
+				PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
+			return Channels.newOutputStream(FileChannel.open(path, opts, perms));
+		}
+		catch (UnsupportedOperationException e) {
+			// Non-POSIX (Windows): rely on parent-directory ACL, as documented
+			return Channels.newOutputStream(FileChannel.open(path, opts));
+		}
+	}
+
+	/**
 	 * Delete a file or directory and all of its contents
-	 * 
+	 *
 	 * @param dir the directory to delete
 	 * @return true if delete was successful. If false is returned, a partial
 	 *         delete may have occurred.
@@ -422,6 +454,10 @@ public final class FileUtilities {
 	 * @throws CancelledException if the operation is cancelled
 	 */
 	public final static boolean deleteDir(File dir, TaskMonitor monitor) throws CancelledException {
+		if (Files.isSymbolicLink(dir.toPath())) {
+			return dir.delete();
+		}
+
 		File[] files = dir.listFiles();
 		if (files == null) {
 			return dir.delete();
@@ -431,7 +467,7 @@ public final class FileUtilities {
 
 		for (int i = 0; i < files.length; i++) {
 			monitor.checkCancelled();
-			if (files[i].isDirectory()) {
+			if (files[i].isDirectory() && !Files.isSymbolicLink(files[i].toPath())) {
 				// use a dummy monitor as not to ruin our progress
 				if (!doDeleteDir(files[i], monitor)) {
 					printDebug("Unable to delete directory: " + files[i]);
@@ -466,7 +502,7 @@ public final class FileUtilities {
 
 		for (File file : files) {
 			monitor.checkCancelled();
-			if (file.isDirectory()) {
+			if (file.isDirectory() && !Files.isSymbolicLink(file.toPath())) {
 				// use a dummy monitor as not to ruin our progress
 				if (!doDeleteDir(file, monitor)) {
 					printDebug("Unable to delete directory: " + file);
@@ -629,7 +665,7 @@ public final class FileUtilities {
 
 		try (InputStream fin = new FileInputStream(fromFile)) {
 			if (monitor != null) {
-				monitor.initialize((int) fromFile.length());
+				monitor.initialize(fromFile.length());
 			}
 			copyStreamToStream(fin, out, monitor);
 		}
